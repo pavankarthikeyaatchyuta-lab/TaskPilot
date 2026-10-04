@@ -1,4 +1,12 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+export function getApiBase(): string {
+  if (typeof window === 'undefined') {
+    if (process.env.BACKEND_URL) {
+      return `${process.env.BACKEND_URL.replace(/\/$/, '')}/api`;
+    }
+    return process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+  }
+  return process.env.NEXT_PUBLIC_API_URL || '/api';
+}
 
 export interface Opportunity {
   id: number;
@@ -140,7 +148,7 @@ export interface StudentProfile {
 }
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${endpoint}`;
+  const url = `${getApiBase()}${endpoint}`;
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -180,7 +188,7 @@ export const api = {
     request<Application>('/applications', { method: 'POST', body: JSON.stringify(data) }),
   updateApplication: (id: number, data: Partial<Application>) =>
     request<Application>(`/applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  getExportCsvUrl: () => `${API_BASE}/applications/export`,
+  getExportCsvUrl: () => `${getApiBase()}/applications/export`,
 
   // Profile
   getProfile: () => request<StudentProfile>('/profile'),

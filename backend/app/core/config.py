@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api"
     
     # Database
-    DATABASE_URL: str = "sqlite:///./taskpilot.db"
+    DATABASE_URL: str = "sqlite:////tmp/taskpilot.db" if os.environ.get("VERCEL") else "sqlite:///./taskpilot.db"
     
     # LLM Settings
     LLM_PROVIDER: str = "mock"  # 'mock', 'openai', 'groq'
