@@ -98,9 +98,9 @@ export const AppShell: React.FC<AppShellProps> = ({
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#07090e] text-slate-100 font-sans selection:bg-slate-700 selection:text-white">
-      {/* Top Cockpit Header - 3D Tactile Precision Bar */}
-      <header className="sticky top-0 z-40 bg-[#090c13]/90 backdrop-blur-md border-b border-black/80 shadow-[0_4px_12px_#030508] h-14">
+    <div className="h-screen flex flex-col bg-[#07090e] text-slate-100 font-sans selection:bg-slate-700 selection:text-white overflow-hidden">
+      {/* Top Cockpit Header - Fixed at Top */}
+      <header className="h-14 shrink-0 z-40 bg-[#090c13]/95 backdrop-blur-md border-b border-black/80 shadow-[0_4px_12px_#030508]">
         <div className="max-w-[1480px] mx-auto px-4 sm:px-6 h-full flex items-center justify-between gap-4">
           {/* Logo & Cockpit Identity */}
           <div className="flex items-center gap-3">
@@ -180,10 +180,10 @@ export const AppShell: React.FC<AppShellProps> = ({
         </div>
       </header>
 
-      {/* Main Container with 3D Neuromorphic Sidebar */}
-      <div className="flex-1 max-w-[1480px] w-full mx-auto flex">
-        {/* Desktop 3D Neuromorphic Sidebar */}
-        <aside className="w-64 shrink-0 hidden lg:flex flex-col justify-between neuro-sidebar p-3 space-y-4 select-none min-h-[calc(100vh-3.5rem)]">
+      {/* Main Container with 3D Neuromorphic Fixed Sidebar */}
+      <div className="flex-1 flex overflow-hidden max-w-[1480px] w-full mx-auto">
+        {/* Desktop 3D Neuromorphic Sidebar - Fixed & Immovable */}
+        <aside className="w-64 shrink-0 hidden lg:flex flex-col justify-between neuro-sidebar p-3 space-y-4 select-none h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <div className="space-y-4">
             {navSections.map((section, idx) => (
               <div key={section.title} className="space-y-1">
@@ -324,8 +324,8 @@ export const AppShell: React.FC<AppShellProps> = ({
           </div>
         )}
 
-        {/* Main Content Workspace */}
-        <main className="flex-1 p-4 sm:p-6 pb-24 overflow-y-auto">
+        {/* Main Content Workspace - Independent Smooth Scrolling */}
+        <main className="flex-1 h-full overflow-y-auto p-4 sm:p-6 pb-28 scroll-smooth">
           {children}
         </main>
       </div>
