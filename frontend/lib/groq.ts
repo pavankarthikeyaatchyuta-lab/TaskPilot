@@ -18,7 +18,7 @@ export async function callGroqChat(
     return null;
   }
 
-  const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  const model = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
