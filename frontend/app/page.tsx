@@ -7,22 +7,41 @@ import {
   Clock,
   Award,
   Sparkles,
-  Bot,
-  Layers,
   Search,
   CheckCircle2,
   TrendingUp,
   ShieldCheck,
   AlertTriangle,
+  Play,
+  ArrowRight,
+  ExternalLink,
 } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
+
+import { TaskPilotBackground } from '@/components/background/TaskPilotBackground';
+import { CustomCursor } from '@/components/ui/CustomCursor';
+import { AppShell } from '@/components/AppShell';
+import { LandingPage } from '@/components/landing/LandingPage';
+import { CommandPalette } from '@/components/CommandPalette';
+import { TodaysMission } from '@/components/TodaysMission';
 import { AgentCommandBar } from '@/components/AgentCommandBar';
 import { AgentActivityPanel } from '@/components/AgentActivityPanel';
 import { OpportunityCard } from '@/components/OpportunityCard';
+import { OpportunityDetailModal } from '@/components/OpportunityDetailModal';
 import { KanbanPipeline } from '@/components/KanbanPipeline';
+import { ApplicationDetailModal } from '@/components/ApplicationDetailModal';
 import { FollowupManager } from '@/components/FollowupManager';
 import { ProfileView } from '@/components/ProfileView';
+import { AnalyticsView } from '@/components/AnalyticsView';
 import { ApprovalModal } from '@/components/ApprovalModal';
+
+import {
+  IconLogo,
+  IconAgent,
+  IconMission,
+  IconOpportunity,
+  IconApproval,
+} from '@/components/icons/TaskPilotIcons';
+
 import {
   api,
   DashboardData,
@@ -35,6 +54,7 @@ import {
 } from '@/lib/api';
 
 export default function Home() {
+  const [viewMode, setViewMode] = useState<'app' | 'landing'>('app');
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -47,6 +67,11 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isDemoRunning, setIsDemoRunning] = useState<boolean>(false);
   const [isApprovalOpen, setIsApprovalOpen] = useState<boolean>(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+
+  // Selected modals
+  const [selectedOppForDetail, setSelectedOppForDetail] = useState<Opportunity | null>(null);
+  const [selectedAppForDetail, setSelectedAppForDetail] = useState<Application | null>(null);
 
   // Search & Filters for Opportunities
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,9 +136,10 @@ export default function Home() {
 
   // Handle Run Judge Demo
   const handleRunDemo = async () => {
+    setViewMode('app');
     setIsDemoRunning(true);
     setIsLoading(true);
-    setActiveTab('agent');
+    setActiveTab('mission');
     try {
       const task = await api.runJudgeDemo();
       setCurrentTask(task);
@@ -152,6 +178,7 @@ export default function Home() {
 
   // Handle Custom Natural Language Goal
   const handleSubmitGoal = async (goal: string) => {
+    setViewMode('app');
     setIsLoading(true);
     setActiveTab('agent');
     try {
@@ -215,7 +242,7 @@ export default function Home() {
         company: opp.company,
         role: opp.title,
         status: 'SHORTLISTED',
-        match_score: opp.match_score || 80,
+        match_score: opp.match_score || 85,
         match_reason: opp.why_match?.join(' • ') || 'Added from opportunity radar',
         deadline: opp.deadline,
         application_url: opp.application_url,
@@ -250,281 +277,438 @@ export default function Home() {
     return matchesSearch && matchesRemote && matchesType;
   });
 
+  // If in Landing Mode
+  if (viewMode === 'landing') {
+    return (
+      <>
+        <TaskPilotBackground agentActive={isDemoRunning} />
+        <CustomCursor isAgentActive={isDemoRunning} />
+        <LandingPage
+          onEnterApp={() => setViewMode('app')}
+          onRunDemo={handleRunDemo}
+        />
+      </>
+    );
+  }
+
+  // App Mission Control Shell
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
-      {/* Top Navbar */}
-      <Navbar
+    <>
+      <TaskPilotBackground agentActive={isDemoRunning || !!currentTask} />
+      <CustomCursor isAgentActive={isDemoRunning} />
+
+      <AppShell
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onRunDemo={handleRunDemo}
         onResetDemo={handleResetDemo}
         isRunningDemo={isDemoRunning}
         pendingApprovalsCount={approvals.length}
-      />
-
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Agent Command Bar always visible at top */}
-        <AgentCommandBar onSubmitGoal={handleSubmitGoal} isLoading={isLoading} />
-
-        {/* TAB 1: DASHBOARD OVERVIEW */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-6">
-            {/* KPI Metric Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-sm">
-                <div className="flex items-center justify-between text-slate-400 mb-2">
-                  <span className="text-xs font-semibold uppercase">Active Apps</span>
-                  <Briefcase className="w-4 h-4 text-indigo-400" />
-                </div>
-                <div className="text-2xl font-extrabold text-white font-mono">
-                  {dashboard?.active_applications_count ?? 4}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-1">In active pipeline</div>
-              </div>
-
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-sm">
-                <div className="flex items-center justify-between text-slate-400 mb-2">
-                  <span className="text-xs font-semibold uppercase">Shortlisted</span>
-                  <Bookmark className="w-4 h-4 text-sky-400" />
-                </div>
-                <div className="text-2xl font-extrabold text-white font-mono">
-                  {dashboard?.shortlisted_count ?? 0}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-1">Ready for tailoring</div>
-              </div>
-
-              <div className="bg-slate-900/80 border border-amber-500/30 bg-amber-950/10 rounded-2xl p-4 shadow-sm">
-                <div className="flex items-center justify-between text-amber-300 mb-2">
-                  <span className="text-xs font-semibold uppercase">Follow-ups Due</span>
-                  <Clock className="w-4 h-4 text-amber-400" />
-                </div>
-                <div className="text-2xl font-extrabold text-amber-300 font-mono">
-                  {dashboard?.followups_due_count ?? 2}
-                </div>
-                <div className="text-[11px] text-amber-400/80 mt-1">Exceeded 14d silence</div>
-              </div>
-
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-sm">
-                <div className="flex items-center justify-between text-slate-400 mb-2">
-                  <span className="text-xs font-semibold uppercase">Interviews</span>
-                  <TrendingUp className="w-4 h-4 text-violet-400" />
-                </div>
-                <div className="text-2xl font-extrabold text-white font-mono">
-                  {dashboard?.interviews_count ?? 1}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-1">Technical screens</div>
-              </div>
-
-              <div className="bg-slate-900/80 border border-emerald-500/30 bg-emerald-950/10 rounded-2xl p-4 shadow-sm">
-                <div className="flex items-center justify-between text-emerald-300 mb-2">
-                  <span className="text-xs font-semibold uppercase">Discovered</span>
-                  <Sparkles className="w-4 h-4 text-emerald-400" />
-                </div>
-                <div className="text-2xl font-extrabold text-emerald-400 font-mono">
-                  {dashboard?.total_opportunities_count ?? 14}
-                </div>
-                <div className="text-[11px] text-emerald-400/80 mt-1">Scored opportunities</div>
-              </div>
+        profileName={profile?.full_name}
+      >
+        <div className="space-y-6 max-w-7xl mx-auto">
+          {/* Landing / Cockpit view switcher chip */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono uppercase text-slate-500 font-semibold tracking-wider">
+                System Mode:
+              </span>
+              <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded">
+                MISSION COCKPIT ACTIVE
+              </span>
             </div>
 
-            {/* Approval Gate Alert Banner if pending */}
-            {approvals.length > 0 && (
-              <div className="bg-amber-950/30 border border-amber-500/50 rounded-2xl p-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-5 h-5 text-amber-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-amber-200">
-                      Human Approval Required ({approvals.length} Actions Pending)
-                    </h3>
-                    <p className="text-xs text-amber-300/80">
-                      The Follow-up Agent has drafted personalized emails for overdue applications. Your authorization is required before dispatch.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsApprovalOpen(true)}
-                  className="px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl shadow-md transition-all shrink-0"
-                >
-                  Review & Authorize
-                </button>
-              </div>
-            )}
+            <button
+              onClick={() => setViewMode('landing')}
+              className="text-xs text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 font-mono"
+            >
+              <span>View Landing Hero</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
 
-            {/* Dual Column: Top Recommended Matches & Pipeline Quick Snapshot */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left 2 cols: Top Opportunities */}
-              <div className="lg:col-span-2 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-indigo-400" /> Top AI/ML Matches for Alex
-                  </h3>
+          {/* Quick Command Bar */}
+          <AgentCommandBar onSubmitGoal={handleSubmitGoal} isLoading={isLoading} />
+
+          {/* TAB 1: OVERVIEW DASHBOARD */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+              {/* Today's Mission Focal Card */}
+              <TodaysMission
+                currentTask={currentTask}
+                onOpenApproval={() => setIsApprovalOpen(true)}
+                onRunMission={handleRunDemo}
+                isLoading={isLoading}
+              />
+
+              {/* KPI Metric Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-400 mb-2">
+                    <span className="text-xs font-semibold uppercase">Active Apps</span>
+                    <Briefcase className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-white font-mono">
+                    {dashboard?.active_applications_count ?? 4}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-1">In active pipeline</div>
+                </div>
+
+                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-400 mb-2">
+                    <span className="text-xs font-semibold uppercase">Shortlisted</span>
+                    <Bookmark className="w-4 h-4 text-teal-400" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-white font-mono">
+                    {dashboard?.shortlisted_count ?? 0}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-1">Ready for tailoring</div>
+                </div>
+
+                <div className="bg-slate-900/80 border border-amber-500/30 bg-amber-950/10 rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-amber-300 mb-2">
+                    <span className="text-xs font-semibold uppercase">Follow-ups Due</span>
+                    <Clock className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-amber-300 font-mono">
+                    {dashboard?.followups_due_count ?? 2}
+                  </div>
+                  <div className="text-[11px] text-amber-400/80 mt-1">Exceeded 14d threshold</div>
+                </div>
+
+                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-400 mb-2">
+                    <span className="text-xs font-semibold uppercase">Interviews</span>
+                    <TrendingUp className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-white font-mono">
+                    {dashboard?.interviews_count ?? 1}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-1">Technical screens</div>
+                </div>
+
+                <div className="bg-slate-900/80 border border-emerald-500/30 bg-emerald-950/10 rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-emerald-300 mb-2">
+                    <span className="text-xs font-semibold uppercase">Discovered</span>
+                    <Sparkles className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-emerald-400 font-mono">
+                    {dashboard?.total_opportunities_count ?? 14}
+                  </div>
+                  <div className="text-[11px] text-emerald-400/80 mt-1">Calibrated opportunities</div>
+                </div>
+              </div>
+
+              {/* Approval Gate Alert Banner if pending */}
+              {approvals.length > 0 && (
+                <div className="bg-amber-950/30 border border-amber-500/50 rounded-2xl p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+                      <ShieldCheck className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-amber-200">
+                        Human Approval Required ({approvals.length} Actions Pending)
+                      </h3>
+                      <p className="text-xs text-amber-300/80">
+                        Personalized drafts generated for applications past the 14-day silence threshold. Review and authorize before dispatch.
+                      </p>
+                    </div>
+                  </div>
                   <button
-                    onClick={() => setActiveTab('opportunities')}
-                    className="text-xs text-indigo-400 hover:text-indigo-300"
+                    onClick={() => setIsApprovalOpen(true)}
+                    className="px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl shadow-md transition-all shrink-0"
                   >
-                    View All {opportunities.length}
+                    Review & Authorize
                   </button>
                 </div>
+              )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {opportunities.slice(0, 4).map((opp) => (
+              {/* Split Feed: Top Matches & Recent Pipeline */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                      Top Recommended Matches for {profile?.full_name || 'Alex'}
+                    </h3>
+                    <button
+                      onClick={() => setActiveTab('opportunities')}
+                      className="text-xs text-cyan-400 hover:text-cyan-300"
+                    >
+                      View Radar ({opportunities.length})
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {opportunities.slice(0, 4).map((opp) => (
+                      <div
+                        key={opp.id}
+                        onClick={() => setSelectedOppForDetail(opp)}
+                        className="cursor-pointer"
+                      >
+                        <OpportunityCard
+                          opp={opp}
+                          onTrack={handleTrackOpportunity}
+                          isTracked={applications.some((a) => a.company === opp.company && a.role === opp.title)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" /> Active Applications
+                    </h3>
+                    <button
+                      onClick={() => setActiveTab('pipeline')}
+                      className="text-xs text-cyan-400 hover:text-cyan-300"
+                    >
+                      Kanban Board
+                    </button>
+                  </div>
+
+                  <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-2.5">
+                    {applications.slice(0, 5).map((app) => (
+                      <div
+                        key={app.id}
+                        onClick={() => setSelectedAppForDetail(app)}
+                        className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl text-xs space-y-1 hover:border-cyan-500/40 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white">{app.company}</span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                            {app.status}
+                          </span>
+                        </div>
+                        <div className="text-slate-400 truncate">{app.role}</div>
+                        {app.match_score > 0 && (
+                          <div className="text-[10px] text-emerald-400 font-mono">
+                            Fit Score: {app.match_score}%
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: TODAY'S MISSION & ORCHESTRATION */}
+          {activeTab === 'mission' && (
+            <div className="space-y-6">
+              <TodaysMission
+                currentTask={currentTask}
+                onOpenApproval={() => setIsApprovalOpen(true)}
+                onRunMission={handleRunDemo}
+                isLoading={isLoading}
+              />
+              <AgentActivityPanel
+                task={currentTask}
+                actions={taskActions}
+                onOpenApproval={() => setIsApprovalOpen(true)}
+              />
+            </div>
+          )}
+
+          {/* TAB 3: OPPORTUNITY RADAR */}
+          {activeTab === 'opportunities' && (
+            <div className="space-y-5">
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex-1 min-w-[240px] relative">
+                  <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Filter by keyword, skill (PyTorch, CUDA), or company..."
+                    className="w-full bg-slate-950 border border-slate-750 focus:border-cyan-500 rounded-xl pl-9 pr-4 py-2 text-xs text-white outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <select
+                    value={remoteFilter}
+                    onChange={(e) => setRemoteFilter(e.target.value)}
+                    className="bg-slate-950 border border-slate-750 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none"
+                  >
+                    <option value="All">All Locations</option>
+                    <option value="Remote">Remote Only</option>
+                    <option value="Hybrid">Hybrid</option>
+                    <option value="On-site">On-site</option>
+                  </select>
+
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                    className="bg-slate-950 border border-slate-750 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none"
+                  >
+                    <option value="All">All Types</option>
+                    <option value="internship">Internships</option>
+                    <option value="hackathon">Hackathons</option>
+                    <option value="research">Research</option>
+                    <option value="scholarship">Scholarships</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredOpps.map((opp) => (
+                  <div
+                    key={opp.id}
+                    onClick={() => setSelectedOppForDetail(opp)}
+                    className="cursor-pointer"
+                  >
                     <OpportunityCard
-                      key={opp.id}
                       opp={opp}
                       onTrack={handleTrackOpportunity}
                       isTracked={applications.some((a) => a.company === opp.company && a.role === opp.title)}
                     />
-                  ))}
-                </div>
-              </div>
-
-              {/* Right 1 col: Recent Pipeline Activity */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-slate-400" /> Active Applications
-                  </h3>
-                  <button
-                    onClick={() => setActiveTab('pipeline')}
-                    className="text-xs text-indigo-400 hover:text-indigo-300"
-                  >
-                    Kanban View
-                  </button>
-                </div>
-
-                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-3">
-                  {applications.slice(0, 5).map((app) => (
-                    <div
-                      key={app.id}
-                      className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl text-xs space-y-1.5 hover:border-slate-700 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-white">{app.company}</span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                          {app.status}
-                        </span>
-                      </div>
-                      <div className="text-slate-400 truncate">{app.role}</div>
-                      {app.match_score > 0 && (
-                        <div className="text-[10px] text-emerald-400 font-mono">
-                          Match: {app.match_score}%
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* TAB 2: AGENT STUDIO */}
-        {activeTab === 'agent' && (
-          <div className="space-y-6">
-            <AgentActivityPanel
-              task={currentTask}
-              actions={taskActions}
+          {/* TAB 4: APPLICATION KANBAN PIPELINE */}
+          {activeTab === 'pipeline' && (
+            <KanbanPipeline
+              applications={applications}
+              onStatusChange={handleStatusChange}
+              onOpenFollowup={(app) => {
+                setSelectedAppForDetail(app);
+              }}
+            />
+          )}
+
+          {/* TAB 5: FOLLOW-UP MANAGER */}
+          {activeTab === 'followups' && (
+            <FollowupManager
+              applications={applications}
+              onTriggerDraft={async (app) => {
+                await handleSubmitGoal(`Prepare a personalized follow-up email for my ${app.role} application at ${app.company}.`);
+              }}
               onOpenApproval={() => setIsApprovalOpen(true)}
             />
-          </div>
-        )}
+          )}
 
-        {/* TAB 3: OPPORTUNITIES RADAR */}
-        {activeTab === 'opportunities' && (
-          <div className="space-y-5">
-            {/* Filter toolbar */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex-1 min-w-[240px] relative">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter by keyword, skill (PyTorch, CUDA), or company..."
-                  className="w-full bg-slate-950 border border-slate-750 focus:border-indigo-500 rounded-xl pl-9 pr-4 py-2 text-xs text-white outline-none"
-                />
+          {/* TAB 6: AGENT STUDIO */}
+          {activeTab === 'agent' && (
+            <div className="space-y-6">
+              <AgentActivityPanel
+                task={currentTask}
+                actions={taskActions}
+                onOpenApproval={() => setIsApprovalOpen(true)}
+              />
+            </div>
+          )}
+
+          {/* TAB 7: APPROVAL CENTER */}
+          {activeTab === 'approvals' && (
+            <div className="space-y-4">
+              <div className="bg-slate-900/80 border border-amber-500/40 rounded-2xl p-5 shadow-lg flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-mono uppercase text-amber-400 font-bold">
+                    HUMAN APPROVAL GATE
+                  </div>
+                  <h2 className="text-base font-bold text-white mt-0.5">
+                    {approvals.length} Actions Awaiting Review & Authorization
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Consequential actions (such as email dispatch) require human verification before execution.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsApprovalOpen(true)}
+                  className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold rounded-xl shadow-md transition-all"
+                >
+                  Open Review Modal
+                </button>
               </div>
 
-              <div className="flex items-center gap-2">
-                <select
-                  value={remoteFilter}
-                  onChange={(e) => setRemoteFilter(e.target.value)}
-                  className="bg-slate-950 border border-slate-750 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none"
-                >
-                  <option value="All">All Locations</option>
-                  <option value="Remote">Remote Only</option>
-                  <option value="Hybrid">Hybrid</option>
-                  <option value="On-site">On-site</option>
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {approvals.map((appr) => (
+                  <div
+                    key={appr.id}
+                    className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono px-2 py-0.5 bg-amber-500/10 text-amber-300 rounded font-semibold uppercase">
+                        {appr.action_type}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {new Date(appr.created_at).toLocaleTimeString()}
+                      </span>
+                    </div>
 
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="bg-slate-950 border border-slate-750 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none"
-                >
-                  <option value="All">All Types</option>
-                  <option value="internship">Internships</option>
-                  <option value="hackathon">Hackathons</option>
-                  <option value="research">Research</option>
-                  <option value="scholarship">Scholarships</option>
-                </select>
+                    <h3 className="text-sm font-bold text-white">{appr.title}</h3>
+                    <p className="text-xs text-slate-400 leading-relaxed">{appr.description}</p>
+
+                    <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-slate-300">
+                      <div>Subject: {appr.payload?.subject}</div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                      <button
+                        onClick={() => handleReject(appr.id)}
+                        className="px-3 py-1.5 text-xs text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-500/20 rounded-lg"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        onClick={() => handleApprove(appr.id)}
+                        className="px-3.5 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg"
+                      >
+                        Authorize & Send
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
+          )}
 
-            {/* Opportunities Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredOpps.map((opp) => (
-                <OpportunityCard
-                  key={opp.id}
-                  opp={opp}
-                  onTrack={handleTrackOpportunity}
-                  isTracked={applications.some((a) => a.company === opp.company && a.role === opp.title)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+          {/* TAB 8: CANDIDATE PROFILE */}
+          {activeTab === 'profile' && (
+            <ProfileView
+              profile={profile}
+              onSaveProfile={async (updated) => {
+                const res = await api.updateProfile(updated);
+                setProfile(res);
+                await loadAllData();
+              }}
+            />
+          )}
 
-        {/* TAB 4: APPLICATION KANBAN PIPELINE */}
-        {activeTab === 'pipeline' && (
-          <KanbanPipeline
-            applications={applications}
-            onStatusChange={handleStatusChange}
-            onOpenFollowup={(app) => {
-              setActiveTab('followups');
-            }}
-          />
-        )}
+          {/* TAB 9: ANALYTICS */}
+          {activeTab === 'analytics' && (
+            <AnalyticsView applications={applications} />
+          )}
+        </div>
+      </AppShell>
 
-        {/* TAB 5: FOLLOW-UP MANAGER */}
-        {activeTab === 'followups' && (
-          <FollowupManager
-            applications={applications}
-            onTriggerDraft={async (app) => {
-              // Trigger single follow-up draft & approval request
-              await handleSubmitGoal(`Prepare a personalized follow-up email for my ${app.role} application at ${app.company}.`);
-            }}
-            onOpenApproval={() => setIsApprovalOpen(true)}
-          />
-        )}
+      {/* Global Command Palette */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onRunGoal={handleSubmitGoal}
+        onRunDemo={handleRunDemo}
+        onResetDemo={handleResetDemo}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          setIsCommandPaletteOpen(false);
+        }}
+        onOpenResumeModal={() => {
+          setActiveTab('profile');
+          setIsCommandPaletteOpen(false);
+        }}
+      />
 
-        {/* TAB 6: STUDENT PROFILE */}
-        {activeTab === 'profile' && (
-          <ProfileView
-            profile={profile}
-            onSaveProfile={async (updated) => {
-              const res = await api.updateProfile(updated);
-              setProfile(res);
-              await loadAllData();
-            }}
-          />
-        )}
-      </main>
-
-      {/* Human Approval Modal Gate */}
+      {/* Human Approval Modal */}
       <ApprovalModal
         isOpen={isApprovalOpen}
         onClose={() => setIsApprovalOpen(false)}
@@ -532,6 +716,39 @@ export default function Home() {
         onApprove={handleApprove}
         onReject={handleReject}
       />
-    </div>
+
+      {/* Opportunity Detail Drawer */}
+      <OpportunityDetailModal
+        opp={selectedOppForDetail}
+        isOpen={!!selectedOppForDetail}
+        onClose={() => setSelectedOppForDetail(null)}
+        onTrack={handleTrackOpportunity}
+        isTracked={
+          selectedOppForDetail
+            ? applications.some(
+                (a) =>
+                  a.company === selectedOppForDetail.company &&
+                  a.role === selectedOppForDetail.title
+              )
+            : false
+        }
+      />
+
+      {/* Application Detail & Timeline Drawer */}
+      <ApplicationDetailModal
+        app={selectedAppForDetail}
+        isOpen={!!selectedAppForDetail}
+        onClose={() => setSelectedAppForDetail(null)}
+        onUpdateApp={async (id, data) => {
+          await api.updateApplication(id, data);
+          await loadAllData();
+        }}
+        onTriggerFollowup={(app) => {
+          handleSubmitGoal(
+            `Prepare a personalized follow-up email for my ${app.role} application at ${app.company}.`
+          );
+        }}
+      />
+    </>
   );
 }
