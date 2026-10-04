@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { serverStore } from '@/lib/serverStore';
 import { evaluateOpportunityFit } from '@/lib/serverMatching';
+import { groqGenerateFollowup } from '@/lib/groq';
 
 export async function POST(req: NextRequest) {
   const { goal } = await req.json();
@@ -106,7 +107,16 @@ export async function POST(req: NextRequest) {
     }
   );
 
-  // 3. Create Approval Requests
+  // 3. Create Approval Requests (dynamic via Groq if key provided, else deterministic template)
+  let draft1 = null;
+  let draft2 = null;
+  if (process.env.GROQ_API_KEY) {
+    [draft1, draft2] = await Promise.all([
+      groqGenerateFollowup('Google DeepMind', 'AI/ML Research Intern', '18 days ago', 'Alex Chen', ['PyTorch', 'Transformers', 'Agentic Systems']),
+      groqGenerateFollowup('Microsoft', 'Applied AI Research Intern', '16 days ago', 'Alex Chen', ['LangChain', 'Python', 'FastAPI']),
+    ]);
+  }
+
   const approval1 = {
     id: 'appr-' + Math.random().toString(36).substring(2, 9),
     task_id: taskId,
@@ -118,9 +128,9 @@ export async function POST(req: NextRequest) {
       company: 'Google DeepMind',
       role: 'AI/ML Research Intern',
       applied_date: '18 days ago',
-      subject: 'Inquiry regarding my AI/ML Research Intern Application - Alex Chen',
-      body: `Dear Google DeepMind Recruiting Team,\n\nI hope this email finds you well. I am following up on my application submitted 18 days ago for the AI/ML Research Intern position.\n\nAs a Computer Science student at Stanford University specializing in PyTorch and transformer foundation models, I remain deeply excited about DeepMind's multimodal research and alignment initiatives.\n\nPlease let me know if there are any additional materials, repositories, or project demos I can provide.\n\nThank you for your time and consideration,\nAlex Chen`,
-      tone: 'Courteous, enthusiastic, professional',
+      subject: draft1?.subject || 'Inquiry regarding my AI/ML Research Intern Application - Alex Chen',
+      body: draft1?.body || `Dear Google DeepMind Recruiting Team,\n\nI hope this email finds you well. I am following up on my application submitted 18 days ago for the AI/ML Research Intern position.\n\nAs a Computer Science student at Stanford University specializing in PyTorch and transformer foundation models, I remain deeply excited about DeepMind's multimodal research and alignment initiatives.\n\nPlease let me know if there are any additional materials, repositories, or project demos I can provide.\n\nThank you for your time and consideration,\nAlex Chen`,
+      tone: draft1?.tone || 'Courteous, enthusiastic, professional',
     },
     status: 'PENDING',
     created_at: new Date().toISOString(),
@@ -137,9 +147,9 @@ export async function POST(req: NextRequest) {
       company: 'Microsoft',
       role: 'Applied AI Research Intern',
       applied_date: '16 days ago',
-      subject: 'Follow-up on Applied AI Research Internship Application - Alex Chen',
-      body: `Dear Microsoft Hiring Team,\n\nI am writing to politely check in on the status of my application for the Applied AI Research Intern position, submitted approximately two weeks ago.\n\nI continue to follow your team's work in agentic reasoning graphs and enterprise LLM deployment with immense interest. I would welcome the opportunity to discuss how my experience in PyTorch and LangChain can contribute to your engineering objectives.\n\nThank you very much for your consideration,\nAlex Chen`,
-      tone: 'Polite, proactive, professional',
+      subject: draft2?.subject || 'Follow-up on Applied AI Research Internship Application - Alex Chen',
+      body: draft2?.body || `Dear Microsoft Hiring Team,\n\nI am writing to politely check in on the status of my application for the Applied AI Research Intern position, submitted approximately two weeks ago.\n\nI continue to follow your team's work in agentic reasoning graphs and enterprise LLM deployment with immense interest. I would welcome the opportunity to discuss how my experience in PyTorch and LangChain can contribute to your engineering objectives.\n\nThank you very much for your consideration,\nAlex Chen`,
+      tone: draft2?.tone || 'Polite, proactive, professional',
     },
     status: 'PENDING',
     created_at: new Date().toISOString(),
