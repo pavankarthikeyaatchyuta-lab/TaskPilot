@@ -197,7 +197,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 </span>
               </div>
               <div className="text-[11px] text-slate-400 font-mono">
-                Model: <strong>Llama3-70B</strong>
+                Engine: <strong className="text-cyan-300">Groq (120B)</strong>
               </div>
               <div className="text-[10px] text-slate-500">
                 Zero hallucinations via verified tool contracts
@@ -235,9 +235,53 @@ export const AppShell: React.FC<AppShellProps> = ({
         )}
 
         {/* Main Content Workspace */}
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-6 pb-24 overflow-y-auto">
           {children}
         </main>
+      </div>
+
+      {/* Persistent Floating Interactive Cockpit HUD */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-slate-950/90 backdrop-blur-xl border border-cyan-500/30 rounded-2xl px-3 sm:px-4 py-2 flex items-center gap-2 sm:gap-3 shadow-2xl shadow-cyan-950/80 transition-all hover:border-cyan-400/60">
+        <button
+          onClick={onRunDemo}
+          disabled={isRunningDemo}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-teal-400 hover:opacity-90 rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50"
+        >
+          <Play className="w-3 h-3 fill-current" />
+          <span className="hidden sm:inline">Run Judge Demo</span>
+          <span className="sm:hidden">Demo</span>
+        </button>
+
+        {pendingApprovalsCount > 0 && (
+          <button
+            onClick={() => setActiveTab('approvals')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl shadow-md transition-all animate-pulse active:scale-95"
+          >
+            <IconApproval className="w-3.5 h-3.5" />
+            <span>Gate ({pendingApprovalsCount})</span>
+          </button>
+        )}
+
+        <div className="h-4 w-[1px] bg-slate-800 hidden sm:block" />
+
+        <button
+          onClick={onOpenCommandPalette}
+          className="text-xs font-mono text-slate-400 hover:text-cyan-300 px-2 py-1 rounded-lg hover:bg-slate-900 transition-colors flex items-center gap-1.5"
+        >
+          <Search className="w-3 h-3 text-cyan-400" />
+          <span className="hidden md:inline">Command</span>
+          <kbd className="text-[10px] bg-slate-900 px-1 py-0.5 rounded border border-slate-800 text-slate-400">
+            ⌘K
+          </kbd>
+        </button>
+
+        <button
+          onClick={onResetDemo}
+          title="Reset to benchmark demo state"
+          className="p-1.5 text-slate-400 hover:text-white bg-slate-900/80 hover:bg-slate-800 rounded-lg border border-slate-800 transition-colors"
+        >
+          <RotateCcw className="w-3 h-3" />
+        </button>
       </div>
     </div>
   );

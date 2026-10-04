@@ -77,6 +77,9 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [remoteFilter, setRemoteFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
+  const [minMatchScore, setMinMatchScore] = useState<number>(60);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<'match' | 'deadline' | 'company'>('match');
 
   // Load initial data
   const loadAllData = async () => {
@@ -263,19 +266,37 @@ export default function Home() {
     }
   };
 
-  // Filtered opportunities
-  const filteredOpps = opportunities.filter((opp) => {
-    const matchesSearch =
-      !searchQuery ||
-      opp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      opp.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      opp.skills_required.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Filtered opportunities with dynamic score and skill tag filters + sorting
+  const filteredOpps = opportunities
+    .filter((opp) => {
+      const matchesSearch =
+        !searchQuery ||
+        opp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        opp.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        opp.skills_required.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesRemote = remoteFilter === 'All' || opp.remote_type === remoteFilter;
-    const matchesType = typeFilter === 'All' || opp.opportunity_type === typeFilter;
+      const matchesRemote = remoteFilter === 'All' || opp.remote_type === remoteFilter;
+      const matchesType = typeFilter === 'All' || opp.opportunity_type === typeFilter;
+      const matchesScore = (opp.match_score || 70) >= minMatchScore;
+      const matchesSelectedSkills =
+        selectedSkills.length === 0 ||
+        selectedSkills.every((sk) =>
+          opp.skills_required.some((req) => req.toLowerCase().includes(sk.toLowerCase()))
+        );
 
-    return matchesSearch && matchesRemote && matchesType;
-  });
+      return matchesSearch && matchesRemote && matchesType && matchesScore && matchesSelectedSkills;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'match') {
+        return (b.match_score || 0) - (a.match_score || 0);
+      }
+      if (sortBy === 'deadline') {
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      }
+      return a.company.localeCompare(b.company);
+    });
 
   // If in Landing Mode
   if (viewMode === 'landing') {
@@ -339,6 +360,7 @@ export default function Home() {
                 currentTask={currentTask}
                 onOpenApproval={() => setIsApprovalOpen(true)}
                 onRunMission={handleRunDemo}
+                onQuickPrompt={handleSubmitGoal}
                 isLoading={isLoading}
               />
 
@@ -443,17 +465,13 @@ export default function Home() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {opportunities.slice(0, 4).map((opp) => (
-                      <div
+                      <OpportunityCard
                         key={opp.id}
-                        onClick={() => setSelectedOppForDetail(opp)}
-                        className="cursor-pointer"
-                      >
-                        <OpportunityCard
-                          opp={opp}
-                          onTrack={handleTrackOpportunity}
-                          isTracked={applications.some((a) => a.company === opp.company && a.role === opp.title)}
-                        />
-                      </div>
+                        opp={opp}
+                        onTrack={handleTrackOpportunity}
+                        onSelectDetail={(o) => setSelectedOppForDetail(o)}
+                        isTracked={applications.some((a) => a.company === opp.company && a.role === opp.title)}
+                      />
                     ))}
                   </div>
                 </div>
@@ -505,6 +523,7 @@ export default function Home() {
                 currentTask={currentTask}
                 onOpenApproval={() => setIsApprovalOpen(true)}
                 onRunMission={handleRunDemo}
+                onQuickPrompt={handleSubmitGoal}
                 isLoading={isLoading}
               />
               <AgentActivityPanel
@@ -518,59 +537,174 @@ export default function Home() {
           {/* TAB 3: OPPORTUNITY RADAR */}
           {activeTab === 'opportunities' && (
             <div className="space-y-5">
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex-1 min-w-[240px] relative">
-                  <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Filter by keyword, skill (PyTorch, CUDA), or company..."
-                    className="w-full bg-slate-950 border border-slate-750 focus:border-cyan-500 rounded-xl pl-9 pr-4 py-2 text-xs text-white outline-none"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <select
-                    value={remoteFilter}
-                    onChange={(e) => setRemoteFilter(e.target.value)}
-                    className="bg-slate-950 border border-slate-750 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none"
-                  >
-                    <option value="All">All Locations</option>
-                    <option value="Remote">Remote Only</option>
-                    <option value="Hybrid">Hybrid</option>
-                    <option value="On-site">On-site</option>
-                  </select>
-
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value)}
-                    className="bg-slate-950 border border-slate-750 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none"
-                  >
-                    <option value="All">All Types</option>
-                    <option value="internship">Internships</option>
-                    <option value="hackathon">Hackathons</option>
-                    <option value="research">Research</option>
-                    <option value="scholarship">Scholarships</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredOpps.map((opp) => (
-                  <div
-                    key={opp.id}
-                    onClick={() => setSelectedOppForDetail(opp)}
-                    className="cursor-pointer"
-                  >
-                    <OpportunityCard
-                      opp={opp}
-                      onTrack={handleTrackOpportunity}
-                      isTracked={applications.some((a) => a.company === opp.company && a.role === opp.title)}
+              {/* Interactive Radar Controls */}
+              <div className="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xl backdrop-blur-xl">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex-1 min-w-[260px] relative">
+                    <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Filter by keyword, skill (PyTorch, CUDA), or company..."
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl pl-9 pr-4 py-2 text-xs text-white outline-none transition-colors"
                     />
                   </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Location Filter */}
+                    <select
+                      value={remoteFilter}
+                      onChange={(e) => setRemoteFilter(e.target.value)}
+                      className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none"
+                    >
+                      <option value="All">All Locations</option>
+                      <option value="Remote">Remote Only</option>
+                      <option value="Hybrid">Hybrid</option>
+                      <option value="On-site">On-site</option>
+                    </select>
+
+                    {/* Opportunity Type */}
+                    <select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                      className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none"
+                    >
+                      <option value="All">All Types</option>
+                      <option value="internship">Internships</option>
+                      <option value="hackathon">Hackathons</option>
+                      <option value="research">Research</option>
+                      <option value="scholarship">Scholarships</option>
+                    </select>
+
+                    {/* Sorting */}
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none font-mono"
+                    >
+                      <option value="match">Sort: Fit Score (Highest)</option>
+                      <option value="deadline">Sort: Deadline (Urgent)</option>
+                      <option value="company">Sort: Company (A-Z)</option>
+                    </select>
+
+                    {/* Interactive Match Score Slider */}
+                    <div className="flex items-center gap-2.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+                      <span className="text-[10px] font-mono text-cyan-400 font-bold whitespace-nowrap">
+                        Min: {minMatchScore}%
+                      </span>
+                      <input
+                        type="range"
+                        min="50"
+                        max="95"
+                        step="5"
+                        value={minMatchScore}
+                        onChange={(e) => setMinMatchScore(Number(e.target.value))}
+                        className="w-20 sm:w-24 accent-cyan-400 cursor-pointer"
+                        title="Filter by minimum transparent fit score"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Interactive Skill Tag Pills */}
+                <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-mono uppercase text-slate-500 font-bold mr-1">
+                      Skill Filters:
+                    </span>
+                    {['PyTorch', 'Transformers', 'CUDA', 'LangChain', 'FastAPI', 'Docker', 'SQL', 'TypeScript'].map(
+                      (skill) => {
+                        const isSelected = selectedSkills.includes(skill);
+                        return (
+                          <button
+                            key={skill}
+                            onClick={() => {
+                              setSelectedSkills(
+                                isSelected
+                                  ? selectedSkills.filter((s) => s !== skill)
+                                  : [...selectedSkills, skill]
+                              );
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all ${
+                              isSelected
+                                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/60 shadow-sm shadow-cyan-500/20 font-bold'
+                                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white hover:border-slate-700'
+                            }`}
+                          >
+                            {isSelected ? `✓ ${skill}` : skill}
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+
+                  {/* Clear All Filters Button */}
+                  {(searchQuery ||
+                    remoteFilter !== 'All' ||
+                    typeFilter !== 'All' ||
+                    minMatchScore > 60 ||
+                    selectedSkills.length > 0) && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setRemoteFilter('All');
+                        setTypeFilter('All');
+                        setMinMatchScore(60);
+                        setSelectedSkills([]);
+                      }}
+                      className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
+
+                {/* Results Count Banner */}
+                <div className="text-[11px] font-mono text-slate-400 flex items-center justify-between">
+                  <span>
+                    Showing <strong className="text-white">{filteredOpps.length}</strong> of{' '}
+                    {opportunities.length} opportunities calibrated for Stanford profile
+                  </span>
+                  <span className="text-emerald-400 font-semibold">
+                    {applications.length} currently tracked in pipeline
+                  </span>
+                </div>
+              </div>
+
+              {/* Grid of Opportunities */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredOpps.map((opp) => (
+                  <OpportunityCard
+                    key={opp.id}
+                    opp={opp}
+                    onTrack={handleTrackOpportunity}
+                    onSelectDetail={(o) => setSelectedOppForDetail(o)}
+                    isTracked={applications.some(
+                      (a) => a.company === opp.company && a.role === opp.title
+                    )}
+                  />
                 ))}
               </div>
+
+              {filteredOpps.length === 0 && (
+                <div className="p-12 text-center bg-slate-900/60 border border-slate-800 rounded-2xl space-y-3">
+                  <div className="text-sm font-bold text-slate-300">No opportunities match the selected criteria</div>
+                  <p className="text-xs text-slate-500">Try lowering the minimum fit score slider or clearing skill filters.</p>
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setRemoteFilter('All');
+                      setTypeFilter('All');
+                      setMinMatchScore(60);
+                      setSelectedSkills([]);
+                    }}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-mono rounded-xl transition-all"
+                  >
+                    Reset Filter Criteria
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
