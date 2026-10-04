@@ -9,8 +9,11 @@ __pycache__/
 
 # Environment variables
 .env
+.env*
 .env.local
 .env.*.local
+frontend/.env*
+backend/.env*
 
 # Next.js build
 frontend/.next/
