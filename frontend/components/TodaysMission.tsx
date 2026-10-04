@@ -122,19 +122,9 @@ export const TodaysMission: React.FC<TodaysMissionProps> = ({
       badge: 'Benchmark',
     },
     {
-      label: 'Scan Remote AI Roles >85%',
-      prompt: 'Filter all remote AI and Machine Learning engineering internships with match score greater than 85%.',
-      badge: 'Radar',
-    },
-    {
-      label: 'Draft Follow-up to Google DeepMind',
-      prompt: 'Generate a follow-up inquiry for my Google DeepMind AI/ML Research Intern application submitted 18 days ago.',
+      label: 'Check & Follow-up Overdue Roles',
+      prompt: 'Inspect application tracker and draft a follow-up for applications with silence exceeding 14 days.',
       badge: 'Follow-up',
-    },
-    {
-      label: 'Audit Overdue Pipeline',
-      prompt: 'Inspect application tracker and identify any opportunities with silence exceeding 14 days.',
-      badge: 'Audit',
     },
   ];
 
@@ -344,7 +334,7 @@ export const TodaysMission: React.FC<TodaysMissionProps> = ({
           <Flame className="w-3.5 h-3.5 text-amber-400" />
           <span>Quick Flight Objectives (1-Click Launch)</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {quickSimulations.map((sim, i) => (
             <button
               key={i}

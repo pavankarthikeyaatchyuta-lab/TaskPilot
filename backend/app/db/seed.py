@@ -53,9 +53,9 @@ def seed_database(db: Session):
     db.add(profile)
     db.commit()
 
-    # 3. Seed Opportunities from MockOpportunitySource
+    # 3. Seed 2 Demo Opportunities from MockOpportunitySource
     source = MockOpportunitySource()
-    for opp_data in source.opportunities:
+    for opp_data in source.opportunities[:2]:
         existing_opp = db.query(Opportunity).filter(
             Opportunity.company == opp_data["company"],
             Opportunity.title == opp_data["title"]
@@ -80,10 +80,10 @@ def seed_database(db: Session):
             db.add(opp)
     db.commit()
 
-    # 4. Seed Applications in various states (including 2 that require follow-up > 14 days)
+    # 4. Seed exactly 2 Applications for Demo (1 requiring follow-up > 14 days, 1 recent)
     app1 = Application(
         user_id=user.id,
-        company="Google",
+        company="Google DeepMind",
         role="AI/ML Research Intern",
         status="APPLIED",
         match_score=94.5,
@@ -102,44 +102,16 @@ def seed_database(db: Session):
         status="UNDER_REVIEW",
         match_score=91.0,
         match_reason="Matches LangChain, Python, and Agentic system skills",
-        applied_date=now - timedelta(days=16),  # 16 days ago -> OVERDUE (>14d threshold)
+        applied_date=now - timedelta(days=6),
         deadline=now + timedelta(days=25),
         application_url="https://careers.microsoft.com/us/en/job/applied-ai-intern",
         notes="Resume submitted with project portfolio."
     )
     db.add(app2)
-
-    app3 = Application(
-        user_id=user.id,
-        company="Meta",
-        role="Machine Learning Engineer Intern - Foundation Models",
-        status="INTERVIEW",
-        match_score=88.5,
-        match_reason="Matched distributed training and PyTorch foundations",
-        applied_date=now - timedelta(days=9),
-        deadline=now + timedelta(days=21),
-        application_url="https://metacareers.com/jobs/mle-intern-foundation-models",
-        notes="Technical screen scheduled for next Tuesday."
-    )
-    db.add(app3)
-
-    app4 = Application(
-        user_id=user.id,
-        company="Databricks",
-        role="Machine Learning Platform Intern",
-        status="PREPARING",
-        match_score=85.0,
-        match_reason="Matches Docker, SQL, and FastAPI skillset",
-        applied_date=None,
-        deadline=now + timedelta(days=19),
-        application_url="https://databricks.com/company/careers/ml-platform-intern",
-        notes="Tailoring resume bullet points to highlight MLflow project."
-    )
-    db.add(app4)
     db.commit()
 
     # Add initial history events for app1 and app2
-    for app, days in [(app1, 18), (app2, 16), (app3, 9)]:
+    for app, days in [(app1, 18), (app2, 6)]:
         evt = ApplicationEvent(
             application_id=app.id,
             event_type="STATUS_CHANGE",
@@ -155,6 +127,7 @@ def seed_database(db: Session):
 
 def reset_demo_data(db: Session):
     """Cleanly resets demo applications and tasks to initial benchmark state for the judge."""
+    Base.metadata.create_all(bind=engine)
     db.query(AgentAction).delete()
     db.query(AgentRun).delete()
     db.query(ApprovalRequest).delete()
