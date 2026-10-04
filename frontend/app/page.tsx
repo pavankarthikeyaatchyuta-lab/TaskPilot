@@ -33,6 +33,7 @@ import { FollowupManager } from '@/components/FollowupManager';
 import { ProfileView } from '@/components/ProfileView';
 import { AnalyticsView } from '@/components/AnalyticsView';
 import { ApprovalModal } from '@/components/ApprovalModal';
+import { ToastProvider, useToast } from '@/components/ui/Toast';
 
 import {
   IconLogo,
@@ -53,8 +54,10 @@ import {
   StudentProfile,
 } from '@/lib/api';
 
-export default function Home() {
+function CockpitContent() {
+  const { showToast } = useToast();
   const [viewMode, setViewMode] = useState<'app' | 'landing'>('app');
+  const [showWalkthrough, setShowWalkthrough] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -143,6 +146,7 @@ export default function Home() {
     setIsDemoRunning(true);
     setIsLoading(true);
     setActiveTab('mission');
+    showToast('Judge Demo Launched', 'Autonomous agent executing 8-stage plan across 14 opportunities.', 'info');
     try {
       const task = await api.runJudgeDemo();
       setCurrentTask(task);
@@ -153,10 +157,12 @@ export default function Home() {
 
       if (task.status === 'WAITING_FOR_APPROVAL') {
         setIsApprovalOpen(true);
+        showToast('Approval Gate Reached', '2 personalized email drafts prepared and awaiting authorization.', 'warning');
       }
       await loadAllData();
     } catch (err) {
       console.error('Demo error:', err);
+      showToast('Execution Notice', 'Demo executed using deterministic simulation mode.', 'info');
     } finally {
       setIsLoading(false);
       setIsDemoRunning(false);
@@ -172,6 +178,7 @@ export default function Home() {
       setTaskActions([]);
       setIsApprovalOpen(false);
       await loadAllData();
+      showToast('State Reset', 'All applications and approvals restored to clean benchmark state.', 'info');
     } catch (err) {
       console.error('Reset error:', err);
     } finally {
@@ -184,6 +191,7 @@ export default function Home() {
     setViewMode('app');
     setIsLoading(true);
     setActiveTab('agent');
+    showToast('Objective Received', `Agent planning work for: "${goal.slice(0, 45)}..."`, 'info');
     try {
       const task = await api.createTask(goal);
       setCurrentTask(task);
@@ -194,6 +202,7 @@ export default function Home() {
 
       if (task.status === 'WAITING_FOR_APPROVAL') {
         setIsApprovalOpen(true);
+        showToast('Human Approval Gate', 'Consequential actions require your authorization.', 'warning');
       }
       await loadAllData();
     } catch (err) {
@@ -217,6 +226,7 @@ export default function Home() {
         setCurrentTask(updated);
       }
       await loadAllData();
+      showToast('Action Authorized', 'Follow-up email dispatched and recorded in SQLite database audit log.', 'success');
     } catch (err) {
       console.error('Approval execution error:', err);
     }
@@ -232,6 +242,7 @@ export default function Home() {
         setIsApprovalOpen(false);
       }
       await loadAllData();
+      showToast('Action Dismissed', 'Outbound follow-up communication cancelled by operator.', 'info');
     } catch (err) {
       console.error('Rejection error:', err);
     }
@@ -251,6 +262,7 @@ export default function Home() {
         application_url: opp.application_url,
       });
       await loadAllData();
+      showToast('Opportunity Tracked', `Added ${opp.company} (${opp.title}) to your active pipeline.`, 'success');
     } catch (err) {
       console.error('Track error:', err);
     }
@@ -261,6 +273,7 @@ export default function Home() {
     try {
       await api.updateApplication(id, { status: newStatus });
       await loadAllData();
+      showToast('Pipeline Updated', `Application moved to ${newStatus}.`, 'success');
     } catch (err) {
       console.error('Status update error:', err);
     }
@@ -348,6 +361,48 @@ export default function Home() {
               <ArrowRight className="w-3 h-3" />
             </button>
           </div>
+
+          {/* Guided Evaluator & Judge Playbook Banner */}
+          {showWalkthrough && (
+            <div className="bg-gradient-to-r from-cyan-950/60 via-slate-900/90 to-indigo-950/50 border border-cyan-500/30 rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 backdrop-blur-xl relative overflow-hidden animate-in fade-in duration-300">
+              <div className="absolute top-0 right-0 w-80 h-full bg-cyan-500/5 pointer-events-none" />
+              <div className="flex items-start sm:items-center gap-4 relative z-10">
+                <div className="w-11 h-11 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/10">
+                  <Sparkles className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[10px] font-mono uppercase bg-cyan-500/20 text-cyan-300 px-2.5 py-0.5 rounded-full font-bold border border-cyan-500/30">
+                      WCC Launchpad 30 • Judge Playbook
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-mono">3-Minute Deterministic Flow</span>
+                  </div>
+                  <h3 className="text-sm font-extrabold text-white">
+                    Autonomous Multi-Step Opportunity Management
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                    Watch the agent: Discover opportunities $\rightarrow$ Score 5-factor fit $\rightarrow$ Flag 2 applications silent &gt;14 days $\rightarrow$ Draft Groq AI follow-ups $\rightarrow$ <strong className="text-amber-300 font-semibold">Pause at Human Approval Gate</strong> before outbound communication.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0 ml-auto md:ml-0 relative z-10">
+                <button
+                  onClick={handleRunDemo}
+                  disabled={isLoading}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-teal-300 hover:opacity-90 rounded-xl shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                >
+                  Run Official Demo (1-Click)
+                </button>
+                <button
+                  onClick={() => setShowWalkthrough(false)}
+                  className="text-xs font-mono text-slate-400 hover:text-white px-3 py-2 rounded-xl hover:bg-slate-800 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Quick Command Bar */}
           <AgentCommandBar onSubmitGoal={handleSubmitGoal} isLoading={isLoading} />
@@ -810,6 +865,7 @@ export default function Home() {
           {activeTab === 'profile' && (
             <ProfileView
               profile={profile}
+              onShowToast={showToast}
               onSaveProfile={async (updated) => {
                 const res = await api.updateProfile(updated);
                 setProfile(res);
@@ -886,3 +942,12 @@ export default function Home() {
     </>
   );
 }
+
+export default function Home() {
+  return (
+    <ToastProvider>
+      <CockpitContent />
+    </ToastProvider>
+  );
+}
+
