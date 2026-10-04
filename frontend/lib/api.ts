@@ -180,11 +180,17 @@ export const api = {
     request<Application>('/applications', { method: 'POST', body: JSON.stringify(data) }),
   updateApplication: (id: number, data: Partial<Application>) =>
     request<Application>(`/applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getExportCsvUrl: () => `${API_BASE}/applications/export`,
 
   // Profile
   getProfile: () => request<StudentProfile>('/profile'),
   updateProfile: (data: Partial<StudentProfile>) =>
     request<StudentProfile>('/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+  parseResume: (resumeText: string, autoSave: boolean = false) =>
+    request<any>('/profile/parse-resume', {
+      method: 'POST',
+      body: JSON.stringify({ resume_text: resumeText, auto_save: autoSave }),
+    }),
 
   // Agent & Tasks
   createTask: (goal: string) =>

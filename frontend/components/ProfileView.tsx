@@ -10,8 +10,12 @@ import {
   DollarSign,
   Save,
   CheckCircle2,
+  FileText,
+  Sparkles,
+  Loader2,
+  X,
 } from 'lucide-react';
-import { StudentProfile } from '@/lib/api';
+import { StudentProfile, api } from '@/lib/api';
 
 interface ProfileViewProps {
   profile: StudentProfile | null;
@@ -22,6 +26,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onSaveProfile
   const [formData, setFormData] = useState<Partial<StudentProfile>>(profile || {});
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [resumeText, setResumeText] = useState('');
+  const [isParsingResume, setIsParsingResume] = useState(false);
 
   React.useEffect(() => {
     if (profile) setFormData(profile);
@@ -37,6 +44,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onSaveProfile
       setTimeout(() => setSaveSuccess(false), 3000);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleParseResume = async () => {
+    if (!resumeText.trim()) return;
+    setIsParsingResume(true);
+    try {
+      const res = await api.parseResume(resumeText, true);
+      if (res.parsed_profile) {
+        setFormData((prev) => ({
+          ...prev,
+          ...res.parsed_profile,
+        }));
+        await onSaveProfile(res.parsed_profile);
+        setIsResumeModalOpen(false);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+    } catch (err) {
+      console.error('Error parsing resume:', err);
+    } finally {
+      setIsParsingResume(false);
     }
   };
 
@@ -56,13 +85,87 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onSaveProfile
           </p>
         </div>
 
-        {saveSuccess && (
-          <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold bg-emerald-950/40 border border-emerald-500/30 px-3 py-1.5 rounded-lg">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Profile Saved!</span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsResumeModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-xl transition-all"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Paste Resume & Auto-Fill</span>
+          </button>
+
+          {saveSuccess && (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold bg-emerald-950/40 border border-emerald-500/30 px-3 py-1.5 rounded-lg">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Profile Saved!</span>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Resume Parsing Modal */}
+      {isResumeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                  AI Resume Parser & Skills Extraction
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsResumeModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Paste your raw resume text or LinkedIn summary below. TaskPilot's Extraction Engine will parse your skills, degree, target roles, and automatically calibrate your opportunity match weights.
+            </p>
+
+            <textarea
+              rows={8}
+              value={resumeText}
+              onChange={(e) => setResumeText(e.target.value)}
+              placeholder="Paste resume text here (e.g. Alex Chen, Stanford University BS CS 2026, Skills: Python, PyTorch, Transformers, LangChain, CUDA...)"
+              className="w-full bg-slate-950 border border-slate-750 focus:border-indigo-500 rounded-xl p-3 text-xs text-white outline-none font-sans"
+            />
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsResumeModalOpen(false)}
+                className="px-3.5 py-2 text-xs text-slate-400 hover:text-white bg-slate-800 rounded-xl"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleParseResume}
+                disabled={isParsingResume || !resumeText.trim()}
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-md transition-all disabled:opacity-50"
+              >
+                {isParsingResume ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Extracting Skills & Profile...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Extract & Auto-Fill</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
         {/* Education & Bio */}

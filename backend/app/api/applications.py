@@ -20,6 +20,38 @@ def list_applications(
     apps = q.order_by(Application.updated_at.desc()).all()
     return apps
 
+from fastapi.responses import Response
+import csv
+import io
+
+@router.get("/export")
+def export_applications_csv(db: Session = Depends(get_db)):
+    apps = db.query(Application).filter(Application.user_id == 1).order_by(Application.updated_at.desc()).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Company", "Role", "Status", "Match Score", "Applied Date", "Deadline", "Follow-up Date", "Application URL", "Notes"])
+    
+    for a in apps:
+        writer.writerow([
+            a.id,
+            a.company,
+            a.role,
+            a.status,
+            a.match_score,
+            a.applied_date.strftime('%Y-%m-%d') if a.applied_date else "",
+            a.deadline.strftime('%Y-%m-%d') if a.deadline else "",
+            a.follow_up_date.strftime('%Y-%m-%d') if a.follow_up_date else "",
+            a.application_url or "",
+            (a.notes or "").replace("\n", " ")
+        ])
+    
+    csv_content = output.getvalue()
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=taskpilot_applications.csv"}
+    )
+
 @router.get("/followups")
 async def list_pending_followups(
     threshold_days: int = 14,

@@ -9,8 +9,9 @@ import {
   ExternalLink,
   ChevronRight,
   Sparkles,
+  Download,
 } from 'lucide-react';
-import { Application } from '@/lib/api';
+import { Application, api } from '@/lib/api';
 
 interface KanbanPipelineProps {
   applications: Application[];
@@ -51,9 +52,20 @@ export const KanbanPipeline: React.FC<KanbanPipelineProps> = ({
             Drag or transition applications across career lifecycle stages
           </p>
         </div>
-        <span className="text-xs text-slate-400 font-mono">
-          Total: {applications.length} applications
-        </span>
+        <div className="flex items-center gap-3">
+          <a
+            href={api.getExportCsvUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl transition-all"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export CSV</span>
+          </a>
+          <span className="text-xs text-slate-400 font-mono">
+            Total: {applications.length} applications
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto pb-4">
