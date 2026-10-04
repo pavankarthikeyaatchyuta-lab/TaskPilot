@@ -86,3 +86,110 @@ body {
     cursor: default;
   }
 }
+
+/* ==========================================================================
+   3D NEUROMORPHIC SYSTEM (Dark Tactical & Soft 3D Skeuomorphic Depths)
+   Zero fluorescent neon - Pure brushed metals, obsidian wells, and tactile bevels
+   ========================================================================== */
+
+.neuro-panel {
+  background: #0d1118;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 1px solid rgba(255, 255, 255, 0.035);
+  border-right: 1px solid rgba(0, 0, 0, 0.6);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+  box-shadow: 6px 6px 16px #05070a, -2px -2px 10px rgba(255, 255, 255, 0.02);
+}
+
+.neuro-sidebar {
+  background: linear-gradient(180deg, #0b0e15 0%, #080b11 100%);
+  border-right: 1px solid rgba(0, 0, 0, 0.8);
+  box-shadow: 2px 0 16px #030406;
+}
+
+.neuro-well,
+.neuro-inset {
+  background: #07090f;
+  border-top: 1px solid rgba(0, 0, 0, 0.9);
+  border-left: 1px solid rgba(0, 0, 0, 0.8);
+  border-right: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: inset 3px 3px 6px #030407, inset -2px -2px 5px rgba(255, 255, 255, 0.025);
+}
+
+.neuro-convex {
+  background: linear-gradient(145deg, #131924, #0b0e16);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.7);
+  box-shadow: 4px 4px 10px #040609, -2px -2px 6px rgba(255, 255, 255, 0.025);
+}
+
+.neuro-btn-tactile {
+  background: linear-gradient(145deg, #141923, #0c0f17);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(0, 0, 0, 0.6);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+  box-shadow: 3px 3px 8px #04060a, -1px -1px 4px rgba(255, 255, 255, 0.025);
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neuro-btn-tactile:hover {
+  background: linear-gradient(145deg, #18202d, #0e121c);
+  box-shadow: 5px 5px 12px #030508, -2px -2px 6px rgba(255, 255, 255, 0.04);
+  transform: translateY(-1px);
+}
+
+.neuro-btn-tactile:active {
+  background: #07090f;
+  border-top: 1px solid rgba(0, 0, 0, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: inset 3px 3px 6px #030407, inset -2px -2px 5px rgba(255, 255, 255, 0.025);
+  transform: translateY(1px);
+}
+
+.neuro-nav-item {
+  position: relative;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neuro-nav-item:hover:not(.active) {
+  background: linear-gradient(145deg, #121722, #0b0e16);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 1px solid rgba(255, 255, 255, 0.03);
+  border-right: 1px solid rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.6);
+  box-shadow: 3px 3px 8px #040609, -1px -1px 4px rgba(255, 255, 255, 0.02);
+  transform: translateY(-0.5px);
+}
+
+.neuro-nav-item.active {
+  background: #080a10;
+  border-top: 1px solid rgba(0, 0, 0, 0.9);
+  border-left: 1px solid rgba(0, 0, 0, 0.8);
+  border-right: 1px solid rgba(255, 255, 255, 0.035);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  box-shadow: inset 3px 3px 7px #030407, inset -2px -2px 5px rgba(255, 255, 255, 0.025);
+}
+
+.neuro-badge-pill {
+  background: linear-gradient(145deg, #18202d, #0d1119);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.7);
+  box-shadow: 2px 2px 5px #040608, -1px -1px 3px rgba(255, 255, 255, 0.02);
+}
+
+.neuro-hardware-bay {
+  background: #07090f;
+  border-top: 1px solid rgba(0, 0, 0, 0.9);
+  border-left: 1px solid rgba(0, 0, 0, 0.8);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: inset 4px 4px 8px #030407, inset -2px -2px 6px rgba(255, 255, 255, 0.025);
+}
+
