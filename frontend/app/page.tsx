@@ -1,0 +1,537 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import {
+  Briefcase,
+  Bookmark,
+  Clock,
+  Award,
+  Sparkles,
+  Bot,
+  Layers,
+  Search,
+  CheckCircle2,
+  TrendingUp,
+  ShieldCheck,
+  AlertTriangle,
+} from 'lucide-react';
+import { Navbar } from '@/components/Navbar';
+import { AgentCommandBar } from '@/components/AgentCommandBar';
+import { AgentActivityPanel } from '@/components/AgentActivityPanel';
+import { OpportunityCard } from '@/components/OpportunityCard';
+import { KanbanPipeline } from '@/components/KanbanPipeline';
+import { FollowupManager } from '@/components/FollowupManager';
+import { ProfileView } from '@/components/ProfileView';
+import { ApprovalModal } from '@/components/ApprovalModal';
+import {
+  api,
+  DashboardData,
+  Opportunity,
+  Application,
+  Task,
+  AgentAction,
+  ApprovalRequest,
+  StudentProfile,
+} from '@/lib/api';
+
+export default function Home() {
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [currentTask, setCurrentTask] = useState<Task | null>(null);
+  const [taskActions, setTaskActions] = useState<AgentAction[]>([]);
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
+
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isDemoRunning, setIsDemoRunning] = useState<boolean>(false);
+  const [isApprovalOpen, setIsApprovalOpen] = useState<boolean>(false);
+
+  // Search & Filters for Opportunities
+  const [searchQuery, setSearchQuery] = useState('');
+  const [remoteFilter, setRemoteFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState('All');
+
+  // Load initial data
+  const loadAllData = async () => {
+    try {
+      const [dashData, oppsData, appsData, profData, apprsData] = await Promise.all([
+        api.getDashboard().catch(() => null),
+        api.getOpportunities().catch(() => []),
+        api.getApplications().catch(() => []),
+        api.getProfile().catch(() => null),
+        api.getApprovals().catch(() => []),
+      ]);
+
+      if (dashData) setDashboard(dashData);
+      if (oppsData) setOpportunities(oppsData);
+      if (appsData) setApplications(appsData);
+      if (profData) setProfile(profData);
+      if (apprsData) setApprovals(apprsData);
+    } catch (err) {
+      console.error('Error loading data:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadAllData();
+  }, []);
+
+  // Poll task execution if task is running
+  useEffect(() => {
+    if (!currentTask || currentTask.status === 'COMPLETED' || currentTask.status === 'FAILED') {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const [updatedTask, events, apprs] = await Promise.all([
+          api.getTask(currentTask.id),
+          api.getTaskEvents(currentTask.id),
+          api.getApprovals(),
+        ]);
+        setCurrentTask(updatedTask);
+        setTaskActions(events);
+        setApprovals(apprs);
+
+        if (updatedTask.status === 'WAITING_FOR_APPROVAL') {
+          setIsApprovalOpen(true);
+        }
+        if (updatedTask.status === 'COMPLETED') {
+          loadAllData();
+        }
+      } catch (e) {
+        console.error('Error polling task:', e);
+      }
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [currentTask]);
+
+  // Handle Run Judge Demo
+  const handleRunDemo = async () => {
+    setIsDemoRunning(true);
+    setIsLoading(true);
+    setActiveTab('agent');
+    try {
+      const task = await api.runJudgeDemo();
+      setCurrentTask(task);
+      const events = await api.getTaskEvents(task.id);
+      setTaskActions(events);
+      const apprs = await api.getApprovals();
+      setApprovals(apprs);
+
+      if (task.status === 'WAITING_FOR_APPROVAL') {
+        setIsApprovalOpen(true);
+      }
+      await loadAllData();
+    } catch (err) {
+      console.error('Demo error:', err);
+    } finally {
+      setIsLoading(false);
+      setIsDemoRunning(false);
+    }
+  };
+
+  // Handle Reset Demo
+  const handleResetDemo = async () => {
+    setIsLoading(true);
+    try {
+      await api.resetDemo();
+      setCurrentTask(null);
+      setTaskActions([]);
+      setIsApprovalOpen(false);
+      await loadAllData();
+    } catch (err) {
+      console.error('Reset error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Custom Natural Language Goal
+  const handleSubmitGoal = async (goal: string) => {
+    setIsLoading(true);
+    setActiveTab('agent');
+    try {
+      const task = await api.createTask(goal);
+      setCurrentTask(task);
+      const events = await api.getTaskEvents(task.id);
+      setTaskActions(events);
+      const apprs = await api.getApprovals();
+      setApprovals(apprs);
+
+      if (task.status === 'WAITING_FOR_APPROVAL') {
+        setIsApprovalOpen(true);
+      }
+      await loadAllData();
+    } catch (err) {
+      console.error('Goal submission error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Human Approval
+  const handleApprove = async (id: string, feedback?: string, editedPayload?: any) => {
+    try {
+      await api.approveAction(id, feedback, editedPayload);
+      const apprs = await api.getApprovals();
+      setApprovals(apprs);
+      if (apprs.length === 0) {
+        setIsApprovalOpen(false);
+      }
+      if (currentTask) {
+        const updated = await api.getTask(currentTask.id);
+        setCurrentTask(updated);
+      }
+      await loadAllData();
+    } catch (err) {
+      console.error('Approval execution error:', err);
+    }
+  };
+
+  // Handle Human Rejection
+  const handleReject = async (id: string, feedback?: string) => {
+    try {
+      await api.rejectAction(id, feedback);
+      const apprs = await api.getApprovals();
+      setApprovals(apprs);
+      if (apprs.length === 0) {
+        setIsApprovalOpen(false);
+      }
+      await loadAllData();
+    } catch (err) {
+      console.error('Rejection error:', err);
+    }
+  };
+
+  // Handle Track Opportunity
+  const handleTrackOpportunity = async (opp: Opportunity) => {
+    try {
+      await api.createApplication({
+        opportunity_id: opp.id,
+        company: opp.company,
+        role: opp.title,
+        status: 'SHORTLISTED',
+        match_score: opp.match_score || 80,
+        match_reason: opp.why_match?.join(' • ') || 'Added from opportunity radar',
+        deadline: opp.deadline,
+        application_url: opp.application_url,
+      });
+      await loadAllData();
+    } catch (err) {
+      console.error('Track error:', err);
+    }
+  };
+
+  // Handle Status Transition
+  const handleStatusChange = async (id: number, newStatus: string) => {
+    try {
+      await api.updateApplication(id, { status: newStatus });
+      await loadAllData();
+    } catch (err) {
+      console.error('Status update error:', err);
+    }
+  };
+
+  // Filtered opportunities
+  const filteredOpps = opportunities.filter((opp) => {
+    const matchesSearch =
+      !searchQuery ||
+      opp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      opp.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      opp.skills_required.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesRemote = remoteFilter === 'All' || opp.remote_type === remoteFilter;
+    const matchesType = typeFilter === 'All' || opp.opportunity_type === typeFilter;
+
+    return matchesSearch && matchesRemote && matchesType;
+  });
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+      {/* Top Navbar */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onRunDemo={handleRunDemo}
+        onResetDemo={handleResetDemo}
+        isRunningDemo={isDemoRunning}
+        pendingApprovalsCount={approvals.length}
+      />
+
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Agent Command Bar always visible at top */}
+        <AgentCommandBar onSubmitGoal={handleSubmitGoal} isLoading={isLoading} />
+
+        {/* TAB 1: DASHBOARD OVERVIEW */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            {/* KPI Metric Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase">Active Apps</span>
+                  <Briefcase className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div className="text-2xl font-extrabold text-white font-mono">
+                  {dashboard?.active_applications_count ?? 4}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">In active pipeline</div>
+              </div>
+
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase">Shortlisted</span>
+                  <Bookmark className="w-4 h-4 text-sky-400" />
+                </div>
+                <div className="text-2xl font-extrabold text-white font-mono">
+                  {dashboard?.shortlisted_count ?? 0}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">Ready for tailoring</div>
+              </div>
+
+              <div className="bg-slate-900/80 border border-amber-500/30 bg-amber-950/10 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between text-amber-300 mb-2">
+                  <span className="text-xs font-semibold uppercase">Follow-ups Due</span>
+                  <Clock className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="text-2xl font-extrabold text-amber-300 font-mono">
+                  {dashboard?.followups_due_count ?? 2}
+                </div>
+                <div className="text-[11px] text-amber-400/80 mt-1">Exceeded 14d silence</div>
+              </div>
+
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between text-slate-400 mb-2">
+                  <span className="text-xs font-semibold uppercase">Interviews</span>
+                  <TrendingUp className="w-4 h-4 text-violet-400" />
+                </div>
+                <div className="text-2xl font-extrabold text-white font-mono">
+                  {dashboard?.interviews_count ?? 1}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">Technical screens</div>
+              </div>
+
+              <div className="bg-slate-900/80 border border-emerald-500/30 bg-emerald-950/10 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between text-emerald-300 mb-2">
+                  <span className="text-xs font-semibold uppercase">Discovered</span>
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-2xl font-extrabold text-emerald-400 font-mono">
+                  {dashboard?.total_opportunities_count ?? 14}
+                </div>
+                <div className="text-[11px] text-emerald-400/80 mt-1">Scored opportunities</div>
+              </div>
+            </div>
+
+            {/* Approval Gate Alert Banner if pending */}
+            {approvals.length > 0 && (
+              <div className="bg-amber-950/30 border border-amber-500/50 rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-amber-200">
+                      Human Approval Required ({approvals.length} Actions Pending)
+                    </h3>
+                    <p className="text-xs text-amber-300/80">
+                      The Follow-up Agent has drafted personalized emails for overdue applications. Your authorization is required before dispatch.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsApprovalOpen(true)}
+                  className="px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl shadow-md transition-all shrink-0"
+                >
+                  Review & Authorize
+                </button>
+              </div>
+            )}
+
+            {/* Dual Column: Top Recommended Matches & Pipeline Quick Snapshot */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left 2 cols: Top Opportunities */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-indigo-400" /> Top AI/ML Matches for Alex
+                  </h3>
+                  <button
+                    onClick={() => setActiveTab('opportunities')}
+                    className="text-xs text-indigo-400 hover:text-indigo-300"
+                  >
+                    View All {opportunities.length}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {opportunities.slice(0, 4).map((opp) => (
+                    <OpportunityCard
+                      key={opp.id}
+                      opp={opp}
+                      onTrack={handleTrackOpportunity}
+                      isTracked={applications.some((a) => a.company === opp.company && a.role === opp.title)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Right 1 col: Recent Pipeline Activity */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-slate-400" /> Active Applications
+                  </h3>
+                  <button
+                    onClick={() => setActiveTab('pipeline')}
+                    className="text-xs text-indigo-400 hover:text-indigo-300"
+                  >
+                    Kanban View
+                  </button>
+                </div>
+
+                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+                  {applications.slice(0, 5).map((app) => (
+                    <div
+                      key={app.id}
+                      className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl text-xs space-y-1.5 hover:border-slate-700 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-white">{app.company}</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                          {app.status}
+                        </span>
+                      </div>
+                      <div className="text-slate-400 truncate">{app.role}</div>
+                      {app.match_score > 0 && (
+                        <div className="text-[10px] text-emerald-400 font-mono">
+                          Match: {app.match_score}%
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: AGENT STUDIO */}
+        {activeTab === 'agent' && (
+          <div className="space-y-6">
+            <AgentActivityPanel
+              task={currentTask}
+              actions={taskActions}
+              onOpenApproval={() => setIsApprovalOpen(true)}
+            />
+          </div>
+        )}
+
+        {/* TAB 3: OPPORTUNITIES RADAR */}
+        {activeTab === 'opportunities' && (
+          <div className="space-y-5">
+            {/* Filter toolbar */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex-1 min-w-[240px] relative">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter by keyword, skill (PyTorch, CUDA), or company..."
+                  className="w-full bg-slate-950 border border-slate-750 focus:border-indigo-500 rounded-xl pl-9 pr-4 py-2 text-xs text-white outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={remoteFilter}
+                  onChange={(e) => setRemoteFilter(e.target.value)}
+                  className="bg-slate-950 border border-slate-750 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none"
+                >
+                  <option value="All">All Locations</option>
+                  <option value="Remote">Remote Only</option>
+                  <option value="Hybrid">Hybrid</option>
+                  <option value="On-site">On-site</option>
+                </select>
+
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="bg-slate-950 border border-slate-750 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none"
+                >
+                  <option value="All">All Types</option>
+                  <option value="internship">Internships</option>
+                  <option value="hackathon">Hackathons</option>
+                  <option value="research">Research</option>
+                  <option value="scholarship">Scholarships</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Opportunities Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredOpps.map((opp) => (
+                <OpportunityCard
+                  key={opp.id}
+                  opp={opp}
+                  onTrack={handleTrackOpportunity}
+                  isTracked={applications.some((a) => a.company === opp.company && a.role === opp.title)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: APPLICATION KANBAN PIPELINE */}
+        {activeTab === 'pipeline' && (
+          <KanbanPipeline
+            applications={applications}
+            onStatusChange={handleStatusChange}
+            onOpenFollowup={(app) => {
+              setActiveTab('followups');
+            }}
+          />
+        )}
+
+        {/* TAB 5: FOLLOW-UP MANAGER */}
+        {activeTab === 'followups' && (
+          <FollowupManager
+            applications={applications}
+            onTriggerDraft={async (app) => {
+              // Trigger single follow-up draft & approval request
+              await handleSubmitGoal(`Prepare a personalized follow-up email for my ${app.role} application at ${app.company}.`);
+            }}
+            onOpenApproval={() => setIsApprovalOpen(true)}
+          />
+        )}
+
+        {/* TAB 6: STUDENT PROFILE */}
+        {activeTab === 'profile' && (
+          <ProfileView
+            profile={profile}
+            onSaveProfile={async (updated) => {
+              const res = await api.updateProfile(updated);
+              setProfile(res);
+              await loadAllData();
+            }}
+          />
+        )}
+      </main>
+
+      {/* Human Approval Modal Gate */}
+      <ApprovalModal
+        isOpen={isApprovalOpen}
+        onClose={() => setIsApprovalOpen(false)}
+        approvals={approvals}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
+    </div>
+  );
+}
