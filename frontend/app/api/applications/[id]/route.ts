@@ -40,3 +40,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   return NextResponse.json(app);
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const id = parseInt(params.id);
+  const idx = serverStore.applications.findIndex((a) => a.id === id);
+  if (idx === -1) {
+    return NextResponse.json({ detail: 'Application not found' }, { status: 404 });
+  }
+
+  serverStore.applications.splice(idx, 1);
+  return NextResponse.json({ status: 'success', message: `Application ${id} deleted` });
+}
+

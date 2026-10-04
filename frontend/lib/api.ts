@@ -188,6 +188,8 @@ export const api = {
     request<Application>('/applications', { method: 'POST', body: JSON.stringify(data) }),
   updateApplication: (id: number, data: Partial<Application>) =>
     request<Application>(`/applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteApplication: (id: number) =>
+    request<any>(`/applications/${id}`, { method: 'DELETE' }),
   getExportCsvUrl: () => `${getApiBase()}/applications/export`,
 
   // Profile

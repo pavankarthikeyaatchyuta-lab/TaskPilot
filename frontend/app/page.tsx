@@ -771,6 +771,19 @@ function CockpitContent() {
               onOpenFollowup={(app) => {
                 setSelectedAppForDetail(app);
               }}
+              onSelectApp={(app) => {
+                setSelectedAppForDetail(app);
+              }}
+              onCreateApp={async (data) => {
+                const newApp = await api.createApplication(data);
+                await loadAllData();
+                showToast('Application Tracked', `Added ${newApp.company} (${newApp.role}) to your pipeline.`, 'success');
+              }}
+              onDeleteApp={async (id) => {
+                await api.deleteApplication(id);
+                await loadAllData();
+                showToast('Application Removed', 'Application removed from your pipeline.', 'info');
+              }}
             />
           )}
 
@@ -932,6 +945,12 @@ function CockpitContent() {
         onUpdateApp={async (id, data) => {
           await api.updateApplication(id, data);
           await loadAllData();
+          showToast('Application Saved', 'Application details and notes updated.', 'success');
+        }}
+        onDeleteApp={async (id) => {
+          await api.deleteApplication(id);
+          await loadAllData();
+          showToast('Application Removed', 'Application has been removed from your pipeline.', 'info');
         }}
         onTriggerFollowup={(app) => {
           handleSubmitGoal(
